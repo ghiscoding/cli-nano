@@ -197,7 +197,7 @@ See [examples/](examples/) for more usage patterns.
 
 ## Used by
 
-`cli-nano` is currently used in these other projects of mine (feel free to edit this list):
+`cli-nano` is currently being used by the following projects, which is actually why I created this CLI tool, that I currently maintain as well (feel free to edit this list):
 
 - [native-copyfiles](https://github.com/ghiscoding/native-copyfiles)
 - [remove-glob](https://github.com/ghiscoding/remove-glob)
