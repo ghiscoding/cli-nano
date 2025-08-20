@@ -206,7 +206,7 @@ See [examples/](examples/) for more usage patterns.
 
 You can see below an example of a CLI help (which is the result of calling `--help` with the [config](#usage) shown above). 
 
-Please note:
+Please note that the following means:
 
 - `<option>` → required
 - `[option]` → optional
