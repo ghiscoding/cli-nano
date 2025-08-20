@@ -45,7 +45,7 @@ const config = {
     dryRun: {
       alias: 'd',
       type: 'boolean',
-      describe: 'Show what would be done, but do not actually start the server',
+      describe: 'Show what would be executed but without starting the server',
       default: false, // optional default value
     },
     display: {
