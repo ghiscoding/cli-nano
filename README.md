@@ -69,7 +69,7 @@ const config: Config = {
     dryRun: {
       alias: 'd',
       type: 'boolean',
-      describe: 'Show what would be done, but do not actually start the server',
+      describe: 'Show what would be executed but without starting the server',
       default: false, // optional default value
     },
     display: {
@@ -224,7 +224,7 @@ Arguments:
   port            port to bind on                                                 [number]
 
 Options:
-  -d, --dry-run   Show what would be done, but do not actually start the server   [boolean]
+  -d, --dry-run   Show what would be executed but without starting the server     [boolean]
   -e, --exclude   pattern or glob to exclude (may be passed multiple times)       [array]
   -V, --verbose   print more information to console                               [boolean]
   -o, --open      open browser when starting server                               [boolean]
