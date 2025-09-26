@@ -69,7 +69,7 @@ const config: Config = {
     dryRun: {
       alias: 'd',
       type: 'boolean',
-      describe: 'Show what would be done, but do not actually start the server',
+      describe: 'Show what would be executed but without starting the server',
       default: false, // optional default value
     },
     display: {
@@ -197,7 +197,7 @@ See [examples/](examples/) for more usage patterns.
 
 ## Used by
 
-`cli-nano` is currently used in these other projects of mine (feel free to edit this list):
+`cli-nano` is currently being used by the following projects, which is actually why I created this CLI tool, that I currently maintain as well (feel free to edit this list):
 
 - [native-copyfiles](https://github.com/ghiscoding/native-copyfiles)
 - [remove-glob](https://github.com/ghiscoding/remove-glob)
@@ -206,7 +206,7 @@ See [examples/](examples/) for more usage patterns.
 
 You can see below an example of a CLI help (which is the result of calling `--help` with the [config](#usage) shown above). 
 
-Please note:
+Please note that the following means:
 
 - `<option>` → required
 - `[option]` → optional
@@ -224,7 +224,7 @@ Arguments:
   port            port to bind on                                                 [number]
 
 Options:
-  -d, --dry-run   Show what would be done, but do not actually start the server   [boolean]
+  -d, --dry-run   Show what would be executed but without starting the server     [boolean]
   -e, --exclude   pattern or glob to exclude (may be passed multiple times)       [array]
   -V, --verbose   print more information to console                               [boolean]
   -o, --open      open browser when starting server                               [boolean]
