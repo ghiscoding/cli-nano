@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.2](https://github.com/ghiscoding/cli-nano/compare/v1.2.1...v1.2.2) (2025-09-26)
+
+### Bug Fixes
+
+* publish with OIDC ([b8216b2](https://github.com/ghiscoding/cli-nano/commit/b8216b23b04b06db2e0387402a9ba38f8a7933a1))
+
 ## [1.2.1](https://github.com/ghiscoding/cli-nano/compare/v1.2.0...v1.2.1) (2025-07-09)
 
 ### Bug Fixes
