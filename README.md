@@ -151,7 +151,7 @@ args.display; // boolean (required)
 > If you use `const config: Config = { ... }`, you get type checking but not full intelliSense for parsed arguments.
 
 > [!NOTE]
-> For required+variadic positionals, the type is `[string, ...string[]]` (at least one value required). For optional variadic, it's `string[]`. For non-variadic, it's `string`.
+> For required+variadic positionals, the type is `[string, ...string[]]` (at least one value required). For optional variadic, it's `string[]`. And Finally for non-variadic, it's `string`.
 
 #### Example CLI Calls
 
@@ -199,7 +199,7 @@ See [examples/](examples/) for more usage patterns.
 
 You can see below an example of a CLI help (which is the result of calling `--help` with the [config](#usage) shown above). 
 
-Please note the following meanings:
+Please note the following expectations:
 
 - `<option>` → required
 - `[option]` → optional
