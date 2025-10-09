@@ -13,8 +13,8 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 
 ### Features
 - Parses arguments
-- Supports defining Positional (input) arguments
-  - Supports Variadic args (1 or more positional args)
+- Supports defining Positional arguments (input args)
+  - Supports Variadic arguments (1 or more positional args)
 - Automatically converts flags to camelCase to match config options
   - accepts both `--camelCase` and `--kebab-case`
 - Negates flags when using the `--no-` prefix
@@ -23,7 +23,7 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 - Supports defining `required` options
 - Supports `default` values
 - Supports `group` for grouping command options in help
-- No dependencies!
+- No dependencies and very lightweight!
 
 ### Install
 ```sh
@@ -124,8 +124,8 @@ const args = parseArgs(config);
 console.log(args);
 
 // do something with parsed arguments, for example
-// const { input, port, open } = args;
-// startServer({ input, port, open });
+const { input, port, open } = args;
+startServer({ input, port, open });
 ```
 
 ### Usage with Type Inference
@@ -141,8 +141,8 @@ const args = parseArgs<typeof config>(config);
 
 // TypeScript will infer the correct types:
 args.input;   // [string, ...string[]] (required, variadic)
-args.port;    // number   (optional, has default)
-args.verbose; // boolean  (optional)
+args.port;    // number  (optional, has default)
+args.verbose; // boolean (optional)
 args.display; // boolean (required)
 ```
 
@@ -156,7 +156,7 @@ args.display; // boolean (required)
 #### Example CLI Calls
 
 ```sh
-# Show help guide (created by reading CLI config)
+# Show help guide (creates it by reading CLI config)
 serve --help
 
 # Show version (when defined)
@@ -165,7 +165,7 @@ serve --version
 # Uses default port 5000
 serve dist/index.html
 
-# With required and optional positionals
+# With required and optional positional args
 serve index1.html index2.html 8080 -D value
 
 # With boolean and array options entered as camelCase (kebab-case works too)
@@ -195,18 +195,11 @@ serve index.html 7000 --up 2 -D value
 
 See [examples/](examples/) for more usage patterns.
 
-## Used by
-
-`cli-nano` is currently being used by the following projects, which is actually why I created this CLI tool, that I currently maintain as well (feel free to edit this list):
-
-- [native-copyfiles](https://github.com/ghiscoding/native-copyfiles)
-- [remove-glob](https://github.com/ghiscoding/remove-glob)
-
 ## Help Example
 
 You can see below an example of a CLI help (which is the result of calling `--help` with the [config](#usage) shown above). 
 
-Please note that the following means:
+Please note the following meanings:
 
 - `<option>` → required
 - `[option]` → optional
@@ -237,3 +230,10 @@ Advanced Options:
   -D, --display   a required display option                                       <boolean>
   -r, --rainbow   Enable rainbow mode                                             [boolean]
 ```
+
+## Used by
+
+`cli-nano` is currently being used by the following projects, which is actually why I created this CLI tool, that I currently maintain as well (feel free to edit this list):
+
+- [native-copyfiles](https://github.com/ghiscoding/native-copyfiles)
+- [remove-glob](https://github.com/ghiscoding/remove-glob)
