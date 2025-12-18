@@ -6,16 +6,13 @@
     "github": {
         "release": true,
         "releaseName": "v${version}",
-        "releaseNotes": {
-            "commit": "* ${commit.subject} (${sha}){ - thanks @${author.login}!}"
-        },
         "comments": {
             "issue": "✅ This issue has been resolved and included in version ${version} 📦<br>The release is available on: [GitHub release](${releaseUrl}) 🚀",
             "pr": "🎉 This pull request is included in version ${version} 📦<br>The release is available on: [GitHub release](${releaseUrl}) 🚀"
-        }
+        },
+        "tokenRef": "GITHUB_TOKEN"
     },
     "npm": {
-        "publish": true,
         "skipChecks": true
     },
     "hooks": {
@@ -25,7 +22,7 @@
     },
     "plugins": {
         "@release-it/conventional-changelog": {
-            "header": "# Change Log\nAll notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.",
+            "header": "# Change Log \n\nAll notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.",
             "preset": "conventionalcommits",
             "infile": "CHANGELOG.md"
         }
