@@ -7,8 +7,8 @@
         "release": true,
         "releaseName": "v${version}",
         "comments": {
-            "issue": "✅ This issue has been resolved and included in version ${version} 📦<br>The release is available on: [GitHub release](${releaseUrl}) 🚀",
-            "pr": "🎉 This pull request is included in version ${version} 📦<br>The release is available on: [GitHub release](${releaseUrl}) 🚀"
+            "issue": "✅ This issue has been resolved and included in version ${version} 📦<br>🔗 The release is available on: [GitHub release](${releaseUrl}) 🚀",
+            "pr": "🎉 This pull request is included in version ${version} 📦<br>🔗 The release is available on: [GitHub release](${releaseUrl}) 🚀"
         },
         "tokenRef": "GITHUB_TOKEN"
     },
