@@ -51,12 +51,12 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
     "@release-it/conventional-changelog": "^10.0.4",
-    "@types/node": "^24.10.4",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@types/node": "^24.10.9",
+    "@vitest/coverage-v8": "^4.0.17",
     "premove": "^4.0.0",
-    "release-it": "^19.2.2",
+    "release-it": "^19.2.4",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "engines": {
     "node": "^20.0.0 || >=22.0.0"
