@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/ghiscoding/cli-nano/branch/main/graph/badge.svg)](https://codecov.io/gh/ghiscoding/cli-nano)
 [![npm](https://img.shields.io/npm/v/cli-nano.svg)](https://www.npmjs.com/package/cli-nano)
 [![npm](https://img.shields.io/npm/dy/cli-nano)](https://www.npmjs.com/package/cli-nano)
-[![npm bundle size](https://img.shields.io/bundlephobia/minzip/cli-nano?color=success&label=gzip)](https://bundlephobia.com/result?p=cli-nano)
+[![npm bundle size](https://img.shields.io/badge/gzip-2.08kB-1183c4)](https://bundlejs.com/?q=cli-nano)
 <a href="https://nodejs.org/en/about/previous-releases"><img src="https://img.shields.io/node/v/cli-nano.svg" alt="Node" /></a>
 
 ## cli-nano
