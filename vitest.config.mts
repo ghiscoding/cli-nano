@@ -9,7 +9,7 @@ export default defineConfig({
     },
     coverage: {
       include: ['src/**'],
-      exclude: [...configDefaults.exclude, '**/interfaces.ts', '**/{examples, scripts}/**', '*.mjs'],
+      exclude: [...configDefaults.exclude, '**/interfaces.ts', '**/{examples, scripts}/**', '*.mjs', '**/.npmignore'],
     },
     watch: false,
   },

@@ -25,6 +25,23 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 - Supports `group` for grouping command options in help
 - No dependencies and very lightweight!
 
+### Recent additions
+
+- Grouped short flags: support clustered short aliases (e.g. `-ad`) where the last short may consume a value when appropriate.
+- Kebab/camel duplication: parsed options are available under both `camelCase` and `kebab-case` keys (e.g. both `dryRun` and `dry-run`).
+- `--` passthrough: tokens after `--` are exposed on `result['--']` and are not parsed as options.
+- Raw argv exposure: the original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
+- Bare long-form behavior: a bare long option is treated as an empty value (e.g. `--opt` → `''`) and a bare long array option becomes `['']`.
+- Boolean negation parity: negated booleans expose both `noFoo` and `no-foo` keys (e.g. `--no-dry-run` sets `dryRun=false` and also exposes `noDryRun=true` and `no-dry-run=true`).
+- Negation guard: single-dash forms like `-no-foo` / `-noFoo` are treated as negated long options rather than short clusters.
+- Error message consistency: option/argument errors use the `Unknown argument: X` wording to match existing positional error messages.
+
+Short examples:
+
+- Clustered short flags: `-ad` behaves like `-a -d` and `-ab value` lets `b` consume `value` when `b` expects a value.
+- Bare long option: `--bar` (with no following token) results in `bar: ''` for string options.
+
+
 ### Install
 ```sh
 npm install cli-nano
@@ -179,6 +196,19 @@ serve index.html 7000 -d -e pattern1 -e pattern2 -D value
 
 # With number option
 serve index.html 7000 --up 2 -D value
+
+# Clustered short flags / last-short consumption
+serve index.html 7000 -ad
+serve index.html 7000 -ab value
+
+# Equals form and bare-long
+serve index.html 7000 --opt=value
+serve index.html 7000 --opt=
+serve index.html 7000 --bar
+
+# Negation parity and passthrough
+serve index.html 7000 --no-dry-run
+serve index.html 7000 -- file.txt --not-a-flag
 ```
 
 #### Notes
@@ -192,6 +222,12 @@ serve index.html 7000 --up 2 -D value
 - **Array options**: Repeat the flag to collect multiple values (e.g., `--exclude a --exclude b`).
 - **Aliases**: Use `alias` for short flags (e.g., `-d` for `--dryRun`).
 - **Groups**: Use `group` for grouping some commands in help (e.g., `{ group: 'Extra Commands' }`).
+
+- **Equals form**: `--opt=value` and `--opt=` are supported; an empty value after `=` yields an empty string.
+- **Passthrough**: Tokens after `--` are not parsed and are available on `result['--']`.
+- **Raw argv**: The original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
+- **Negation duplicates**: Using `--no-foo` sets `foo=false` and also exposes `noFoo` and `no-foo` keys.
+- **Alias**: `alias` must be a single string (multi-char aliases are supported). Array-style aliases are not supported and will be rejected.
 
 See [examples/](examples/) for more usage patterns.
 

@@ -79,6 +79,8 @@ describe('parseArgs', () => {
     expect(result.outDirectory).toBe('output/');
     expect(result.all).toBe(true);
     expect(result.dryRun).toBe(false);
+    expect(result.noDryRun).toBe(true);
+    expect(result['no-dry-run']).toBe(true);
   });
 
   it('should parse kebab-case boolean options correctly', () => {
@@ -91,6 +93,8 @@ describe('parseArgs', () => {
     expect(result.outDirectory).toBe('output/');
     expect(result.all).toBe(true);
     expect(result.dryRun).toBe(false);
+    expect(result.noDryRun).toBe(true);
+    expect(result['no-dry-run']).toBe(true);
   });
 
   it('should match option alias using kebab/camel transformations for a single alias', () => {
@@ -176,19 +180,19 @@ describe('parseArgs', () => {
   it('should throw an error for unknown options', () => {
     const args = ['file1.txt', 'output/', '-b', 'value', '--unknown'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    expect(() => parseArgs(config)).toThrowError('Unknown CLI option: unknown');
+    expect(() => parseArgs(config)).toThrowError('Unknown argument: unknown');
   });
 
   it('should throw an error for unknown kebab-case options', () => {
     const args = ['file1.txt', 'output/', '-b', 'value', '--unknown-kebab'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    expect(() => parseArgs(config)).toThrowError('Unknown CLI option: unknown-kebab');
+    expect(() => parseArgs(config)).toThrowError('Unknown argument: unknown-kebab');
   });
 
   it('should throw an error for unknown camelCase options', () => {
     const args = ['file1.txt', 'output/', '-b', 'value', '--unknownCamel'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    expect(() => parseArgs(config)).toThrowError('Unknown CLI option: unknownCamel');
+    expect(() => parseArgs(config)).toThrowError('Unknown argument: unknownCamel');
   });
 
   it('should throw when truthy and --no camelCase prefix arguments are both provided', () => {
@@ -657,12 +661,30 @@ describe('parseArgs', () => {
 
   it('should throw if array option is missing a value', () => {
     const args = ['file1.txt', 'output/', '--exclude', '-b', 'value'];
+    // Bare long-form `--exclude` with a following flag should produce an empty entry
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.exclude).toEqual(['']);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should throw when short alias for array option is missing a value', () => {
+    const args = ['file1.txt', 'output/', '-e', '-b', 'value'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
     expect(() => parseArgs(config)).toThrow('Missing value for array option: exclude');
   });
 
   it('should throw if string option is missing a value', () => {
     const args = ['file1.txt', 'output/', '--bar'];
+    // Bare long-form `--bar` with no following value should be treated as empty string
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    // `--bar` provided with no value produces empty string
+    expect(result.bar).toBe('');
+  });
+
+  it('should throw when short alias for string option is missing a value', () => {
+    const args = ['file1.txt', 'output/', '-b'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
     expect(() => parseArgs(config)).toThrow('Missing value for option: bar');
   });
@@ -686,7 +708,299 @@ describe('parseArgs', () => {
     };
     const args = ['file1.txt', 'output/', '-x', '-b', 'value'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    expect(() => parseArgs(configWithNoAlias)).toThrow('Unknown CLI option: x');
+    expect(() => parseArgs(configWithNoAlias)).toThrow('Unknown argument: x');
+  });
+
+  it('should parse grouped short boolean flags (e.g., -ad)', () => {
+    const args = ['file1.txt', 'output/', '-ad', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+
+    const result = parseArgs(config);
+    expect(result.all).toBe(true);
+    expect(result.dryRun).toBe(true);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should throw unknown option for unknown char inside a short cluster', () => {
+    const args = ['file1.txt', 'output/', '-ax', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(config)).toThrow('Unknown argument: x');
+  });
+
+  it('should throw when a previously provided flag is repeated inside a cluster', () => {
+    const args = ['file1.txt', 'output/', '--all', '-ad', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(config)).toThrow('Providing same negated and truthy argument are not allowed');
+  });
+
+  it('should allow number option as last short in a cluster to consume a value', () => {
+    const configWithNum: Config = {
+      ...config,
+      options: {
+        a: { alias: 'a', type: 'boolean', describe: 'a flag' },
+        num: { alias: 'n', type: 'number', describe: 'a number' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      },
+    } as any;
+
+    const args = ['file1.txt', 'output/', '-an', '2', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithNum);
+    expect(result.a).toBe(true);
+    expect(result.num).toBe(2);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should allow array option as last short in a cluster to consume a value', () => {
+    const configWithArr: Config = {
+      ...config,
+      options: {
+        a: { alias: 'a', type: 'boolean', describe: 'a flag' },
+        arr: { alias: 'x', type: 'array', describe: 'an array' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      },
+    } as any;
+
+    const args = ['file1.txt', 'output/', '-ax', 'val', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithArr);
+    expect(result.a).toBe(true);
+    expect(result.arr).toEqual(['val']);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should allow last short in a cluster to consume a value (e.g., -ab value)', () => {
+    const args = ['file1.txt', 'output/', '-ab', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+
+    const result = parseArgs(config);
+    expect(result.all).toBe(true);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should throw when number option is last short in cluster but missing value', () => {
+    const configWithNum: Config = {
+      ...config,
+      options: {
+        a: { alias: 'a', type: 'boolean', describe: 'a flag' },
+        num: { alias: 'n', type: 'number', describe: 'a number' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      },
+    } as any;
+
+    const args = ['file1.txt', 'output/', '-an', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(configWithNum)).toThrow('Missing value for option: num');
+  });
+
+  it('should throw when array option is last short in cluster but missing value', () => {
+    const configWithArr: Config = {
+      ...config,
+      options: {
+        a: { alias: 'a', type: 'boolean', describe: 'a flag' },
+        arr: { alias: 'x', type: 'array', describe: 'an array' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      },
+    } as any;
+
+    const args = ['file1.txt', 'output/', '-ax', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(configWithArr)).toThrow('Missing value for array option: arr');
+  });
+
+  it('should throw when string option is last short in cluster but missing value', () => {
+    const args = ['file1.txt', 'output/', '-ab'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(config)).toThrow('Missing value for option: bar');
+  });
+
+  it('should throw when last boolean in a cluster was previously provided', () => {
+    const args = ['file1.txt', 'output/', '--dryRun', '-ad', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(config)).toThrow('Providing same negated and truthy argument are not allowed');
+  });
+
+  it('should duplicate kebab and camel variants for parsed kebab-case option and expose __rawArgs', () => {
+    const args = ['file1.txt', 'output/', '--dry-run', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(true);
+    expect(result['dry-run']).toBe(true);
+    expect((result as any).__rawArgs).toEqual(args);
+  });
+
+  it('should duplicate kebab and camel variants for parsed camelCase option', () => {
+    const args = ['file1.txt', 'output/', '--dryRun', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(true);
+    expect(result['dry-run']).toBe(true);
+  });
+
+  it('should duplicate negated kebab/camel variants when using --no- prefix', () => {
+    const args = ['file1.txt', 'output/', '--no-dry-run', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(false);
+    expect(result['dry-run']).toBe(false);
+    expect(result.noDryRun).toBe(true);
+    expect(result['no-dry-run']).toBe(true);
+  });
+
+  it('should create camelCase duplicate when original key is kebab-case in config', () => {
+    const configKebabKey: Config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        'dry-run': { type: 'boolean', alias: 'd', describe: '' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      } as any,
+      version: '1.0.0',
+    };
+
+    const args = ['--dry-run', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configKebabKey);
+    expect(result['dry-run']).toBe(true);
+    expect(result.dryRun).toBe(true);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should skip duplicating internal keys like __rawArgs when present in parsed result', () => {
+    const configWithInternalKey: Config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        __rawArgs: { type: 'string', alias: 'r', describe: 'internal-looking option' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      } as any,
+      version: '1.0.0',
+    };
+
+    const args = ['--__rawArgs', 'foo', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithInternalKey);
+    // the loop should have continued for the '__rawArgs' key and not attempt to duplicate it
+    expect(result.__rawArgs).toBe('foo');
+    expect(result.bar).toBe('value');
+  });
+
+  it('should handle options that include leading no- in their config key and set duplicate no- keys', () => {
+    const configWithNoKey: Config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        noDryRun: { type: 'boolean', alias: 'n', describe: '' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      } as any,
+      version: '1.0.0',
+    };
+
+    const args = ['--no-dry-run', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithNoKey);
+    // The option key is `noDryRun`, so parsing `--no-dry-run` should set it to false
+    expect(result.noDryRun).toBe(false);
+    // and also expose the double-no kebab variant
+    expect(result['no-no-dry-run']).toBe(true);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should handle single-dash negation for options with leading no- key', () => {
+    const configWithNoKey: Config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        noDryRun: { type: 'boolean', alias: 'n', describe: '' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      } as any,
+      version: '1.0.0',
+    };
+
+    const args = ['-no-dryRun', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithNoKey);
+    expect(result.noDryRun).toBe(false);
+    expect(result['no-no-dry-run']).toBe(true);
+    expect(result.bar).toBe('value');
+  });
+
+  it('should throw when a non-boolean short appears before the last in a cluster', () => {
+    const args = ['file1.txt', 'output/', '-ba'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(config)).toThrow('Missing value for option: bar');
+  });
+
+  it('should treat multi-char short alias as a single alias (e.g., -ab when alias="ab")', () => {
+    const configWithMultiAlias: Config = {
+      command: { name: 'test', describe: '', positionals: [] },
+      options: {
+        foobar: { alias: 'ab', type: 'string', describe: 'multi-char alias' },
+        bar: { alias: 'b', required: true, describe: 'a required bar option' },
+      },
+      version: '1.0.0',
+    } as any;
+
+    const args = ['-ab', 'val', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(configWithMultiAlias);
+    expect(result.foobar).toBe('val');
+    expect(result.bar).toBe('value');
+  });
+
+  it('should support single-dash negation like -no-dryRun', () => {
+    const args = ['file1.txt', 'output/', '-no-dryRun', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(false);
+    expect(result.noDryRun).toBe(true);
+    expect(result['no-dry-run']).toBe(true);
+  });
+
+  it('should expose tokens after -- in result["--"] and not parse them', () => {
+    const args = ['file1.txt', 'output/', '--bar', 'value', '--', '--not-a-flag', 'positional'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.bar).toBe('value');
+    expect(result['--']).toEqual(['--not-a-flag', 'positional']);
+    // ensure the tokens after -- were not parsed as options or positionals
+    expect(result.positional).toBeUndefined();
+  });
+
+  it('should duplicate parsed keys into both kebab-case and camelCase (kebab input)', () => {
+    const args = ['file1.txt', 'output/', '--dry-run', '--bar', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(true);
+    expect(result['dry-run']).toBe(true);
+  });
+
+  it('should duplicate parsed keys into both kebab-case and camelCase (camel input)', () => {
+    const args = ['file1.txt', 'output/', '--dryRun', '--bar', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(true);
+    expect(result['dry-run']).toBe(true);
+  });
+
+  it('should duplicate negated keys into both kebab-case and camelCase', () => {
+    const args = ['file1.txt', 'output/', '--no-dry-run', '-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(config);
+    expect(result.dryRun).toBe(false);
+    expect(result['dry-run']).toBe(false);
   });
 
   it('should print usage with optional positional argument', () => {
