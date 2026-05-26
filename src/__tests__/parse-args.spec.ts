@@ -617,6 +617,32 @@ describe('parseArgs', () => {
     expect(() => parseArgs(config)).toThrow('Missing required option: -f, --force');
   });
 
+  it('should default non-required boolean options to false when not provided', () => {
+    const cfg: Config = {
+      command: {
+        name: 'test',
+        describe: 'Test boolean default',
+      },
+      options: {
+        trace: {
+          type: 'boolean',
+          describe: 'Enable trace logging',
+        },
+        bar: {
+          alias: 'b',
+          required: true,
+          describe: 'a required bar option',
+        },
+      },
+      version: '1.0.0',
+    };
+
+    const args: string[] = ['-b', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    const result = parseArgs(cfg);
+    expect(result.trace).toBe(false);
+  });
+
   it('should parse kebab-case long option when alias is camelCase', () => {
     const configWithCamelAlias: Config = {
       ...config,
