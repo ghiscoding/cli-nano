@@ -1,6 +1,12 @@
 # Change Log 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.1](https://github.com/ghiscoding/cli-nano/compare/v1.3.0...v1.3.1) (2026-05-26)
+
+### Bug Fixes
+
+* default boolean options to false and enforce required flags ([37b5a40](https://github.com/ghiscoding/cli-nano/commit/37b5a40a5bf85b1a8fd69752b08f18c49aef6540))
+
 ## [1.3.0](https://github.com/ghiscoding/cli-nano/compare/v1.2.2...v1.3.0) (2026-05-26)
 
 ### Features
