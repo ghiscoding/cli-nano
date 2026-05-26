@@ -10,14 +10,24 @@ const defaultOptions: Record<string, FlagOption> = {
 export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
   const { command, options, version } = config;
 
+  // Capture raw argv for consumers/diagnostics
+  const __rawArgs = process.argv.slice(2);
+
   // Normalize args to support --option=value and -o=value
-  const args = process.argv.slice(2).flatMap(arg => {
+  let args = __rawArgs.flatMap(arg => {
     if (/^--?\w[\w-]*=/.test(arg)) {
       const [flag, ...rest] = arg.split('=');
       return [flag, rest.join('=')];
     }
     return arg;
   });
+
+  // Capture `--` passthrough (everything after `--`) and remove from args to avoid parsing
+  const dashIndex = args.indexOf('--');
+  const dashArgs: string[] = dashIndex >= 0 ? args.slice(dashIndex + 1) : [];
+  if (dashIndex >= 0) {
+    args = args.slice(0, dashIndex);
+  }
   const result: Record<string, any> = {};
 
   // Check for duplicate aliases
@@ -125,8 +135,70 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
         arg = argOrg.slice(2);
         [option, configKey] = findOption(options, arg);
       } else if (argOrg.startsWith('-')) {
-        arg = argOrg.slice(1);
-        [option, configKey] = findOption(options, arg);
+        // Support grouped short flags, e.g. `-ab` where `a` and `b` are aliases.
+        // The last short in the cluster may consume the next token as its value
+        // when it's not a boolean option.
+        const body = argOrg.slice(1);
+        arg = body;
+
+        // If this exact token matches an option (rare), prefer that (e.g. -xy where xy is alias)
+        [option, configKey] = findOption(options, body);
+        // Avoid treating `-no-foo` or `-noFoo` as a short-char cluster — those are
+        // negated long forms and should be handled by the negation branch below.
+        if (!option && body.length > 1 && !/^no-/.test(body) && !/^no[A-Z]/.test(body)) {
+          // Treat as a cluster of single-char aliases
+          const chars = body.split('');
+          for (let ci = 0; ci < chars.length; ci++) {
+            const ch = chars[ci];
+            const isLast = ci === chars.length - 1;
+            const [cOpt, cKey] = findOption(options, ch);
+            if (!cOpt || !cKey) {
+              throw new Error(`Unknown argument: ${ch}`);
+            }
+
+            if (!isLast) {
+              // Middle flags must be boolean
+              if (cOpt.type !== 'boolean') {
+                throw new Error(`Missing value for option: ${cKey}`);
+              }
+              if (result[cKey] !== undefined) {
+                throw new Error('Providing same negated and truthy argument are not allowed');
+              }
+              result[cKey] = true;
+            } else {
+              // Last flag: if boolean, set true; otherwise consume next token as its value
+              if (cOpt.type === 'boolean') {
+                if (result[cKey] !== undefined) {
+                  throw new Error('Providing same negated and truthy argument are not allowed');
+                }
+                result[cKey] = true;
+              } else if (cOpt.type === 'number') {
+                if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
+                  throw new Error(`Missing value for option: ${cKey}`);
+                }
+                result[cKey] = Number(args[++argIndex]);
+              } else if (cOpt.type === 'array') {
+                if (!result[cKey]) {
+                  result[cKey] = [];
+                }
+                const arrayValue = args[++argIndex];
+                if (arrayValue === undefined || arrayValue.startsWith('-')) {
+                  throw new Error(`Missing value for array option: ${cKey}`);
+                }
+                result[cKey].push(arrayValue);
+              } else {
+                if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
+                  throw new Error(`Missing value for option: ${cKey}`);
+                }
+                result[cKey] = args[++argIndex];
+              }
+            }
+          }
+
+          // We've consumed any value for the last short (if present), continue to next arg
+          argIndex++;
+          continue;
+        }
       }
 
       // Handle negated boolean in both forms
@@ -141,13 +213,25 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
             throw new Error('Providing same negated and truthy argument are not allowed');
           }
           result[configKey] = !isNegated;
+          // When explicitly negated (e.g. --no-foo) also expose `noFoo` and `no-foo` keys
+          if (isNegated) {
+            const kebabKey = camelToKebab(configKey);
+            const noCamel = `no${configKey[0].toUpperCase()}${configKey.slice(1)}`;
+            const noKebab = `no-${kebabKey}`;
+            if (result[noCamel] === undefined) {
+              result[noCamel] = true;
+            }
+            if (result[noKebab] === undefined) {
+              result[noKebab] = true;
+            }
+          }
           argIndex++;
           continue;
         }
       }
 
       if (!option || !configKey) {
-        throw new Error(`Unknown CLI option: ${arg}`);
+        throw new Error(`Unknown argument: ${arg}`);
       }
 
       switch (option.type) {
@@ -156,6 +240,18 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
             throw new Error('Providing same negated and truthy argument are not allowed');
           }
           result[configKey] = !argOrg.startsWith('--no-') && !argOrg.startsWith('-no-');
+          // When a boolean was explicitly negated, also expose `noFoo` and `no-foo` keys
+          if (result[configKey] === false) {
+            const kebabKey = camelToKebab(configKey);
+            const noCamel = `no${configKey[0].toUpperCase()}${configKey.slice(1)}`;
+            const noKebab = `no-${kebabKey}`;
+            if (result[noCamel] === undefined) {
+              result[noCamel] = true;
+            }
+            if (result[noKebab] === undefined) {
+              result[noKebab] = true;
+            }
+          }
           break;
         case 'number':
           if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
@@ -164,20 +260,34 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
           result[configKey] = Number(args[++argIndex]);
           break;
         case 'array': {
-          if (!result[configKey]) result[configKey] = [];
-          const arrayValue = args[++argIndex];
-          if (arrayValue === undefined || arrayValue.startsWith('-')) {
-            throw new Error(`Missing value for array option: ${configKey}`);
+          if (!result[configKey]) {
+            result[configKey] = [];
           }
-          result[configKey].push(arrayValue);
+          const next = args[argIndex + 1];
+          if (next === undefined || next.startsWith('-')) {
+            // For bare long-form options we allow empty value; short/clustered forms still throw
+            if (argOrg.startsWith('--')) {
+              result[configKey].push('');
+            } else {
+              throw new Error(`Missing value for array option: ${configKey}`);
+            }
+          } else {
+            result[configKey].push(args[++argIndex]);
+          }
           break;
         }
         case 'string':
         default:
           if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
-            throw new Error(`Missing value for option: ${configKey}`);
+            if (argOrg.startsWith('--')) {
+              // treat bare long option as empty string
+              result[configKey] = '';
+            } else {
+              throw new Error(`Missing value for option: ${configKey}`);
+            }
+          } else {
+            result[configKey] = args[++argIndex];
           }
-          result[configKey] = args[++argIndex];
           break;
       }
     } else {
@@ -197,6 +307,37 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
       throw new Error(`Missing required option: ${aliasStr}--${key}`);
     }
   });
+
+  // Expose raw non-option positionals as `._` for convenience
+  if ((result as any)._ === undefined) {
+    (result as any)._ = nonOptionArgs.slice();
+  }
+
+  // Duplicate parsed keys into both kebab-case and camelCase for parity with yargs.
+  // Use a snapshot of keys to avoid iterating over newly-created duplicates.
+  const parsedKeys = Object.keys(result);
+  for (const key of parsedKeys) {
+    if (key === '--' || key === '__rawArgs') {
+      continue;
+    }
+    const value = result[key];
+    const kebab = camelToKebab(key);
+    const camel = kebabToCamel(key);
+    if (kebab !== key && result[kebab] === undefined) {
+      result[kebab] = value;
+    }
+    if (camel !== key && result[camel] === undefined) {
+      result[camel] = value;
+    }
+  }
+
+  // Expose passthrough tokens and raw args for downstream consumers
+  if (!result['--']) {
+    result['--'] = dashArgs.slice();
+  }
+  if ((result as any).__rawArgs === undefined) {
+    (result as any).__rawArgs = __rawArgs.slice();
+  }
 
   return result as ArgsResult<C>;
 }
