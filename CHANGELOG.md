@@ -1,3 +1,12 @@
+# Change Log 
+All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## [1.3.0](https://github.com/ghiscoding/cli-nano/compare/v1.2.2...v1.3.0) (2026-05-26)
+
+### Features
+
+* grouped short flags, yargs-parity fixes and tests ([ffb24ba](https://github.com/ghiscoding/cli-nano/commit/ffb24ba921f4d807ed97616324b49196616aad4e))
+
 # Change Log
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
