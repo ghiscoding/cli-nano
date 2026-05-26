@@ -227,7 +227,7 @@ serve index.html 7000 -- file.txt --not-a-flag
 - **Passthrough**: Tokens after `--` are not parsed and are available on `result['--']`.
 - **Raw argv**: The original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
 - **Negation duplicates**: Using `--no-foo` sets `foo=false` and also exposes `noFoo` and `no-foo` keys.
-- **Alias shape**: `alias` is a single string (multi-char aliases are supported); array-style aliases are not currently supported.
+- **Alias**: `alias` must be a single string (multi-char aliases are supported). Array-style aliases are not supported and will be rejected.
 
 See [examples/](examples/) for more usage patterns.
 
