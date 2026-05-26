@@ -1311,4 +1311,84 @@ describe('parseArgs', () => {
     expect(result.exclude).toEqual(['pattern1', 'pattern2']);
     expect(result.bar).toBe('value');
   });
+
+  describe('allowInterleaved', () => {
+    const interleavedConfig = {
+      ...config,
+      command: { ...config.command, allowInterleaved: true },
+    } as unknown as Config;
+
+    it('should allow positionals to appear after all options', () => {
+      const args = ['--all', '--bar', 'value', 'file1.txt', 'output/'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.all).toBe(true);
+      expect(result.bar).toBe('value');
+    });
+
+    it('should allow positionals interleaved between options', () => {
+      const args = ['file1.txt', '--all', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.all).toBe(true);
+      expect(result.bar).toBe('value');
+    });
+
+    it('should allow a value-consuming option between positionals', () => {
+      const args = ['file1.txt', '--up', '3', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.up).toBe(3);
+    });
+
+    it('should allow short flags between positionals', () => {
+      const args = ['file1.txt', '-a', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.all).toBe(true);
+    });
+
+    it('should allow array options interleaved with positionals', () => {
+      const args = ['file1.txt', '--exclude', 'node_modules', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.exclude).toEqual(['node_modules']);
+    });
+
+    it('should allow negated boolean flags between positionals', () => {
+      const args = ['file1.txt', '--no-dryRun', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.dryRun).toBe(false);
+    });
+
+    it('should allow short flag clusters between positionals', () => {
+      const args = ['file1.txt', '-ad', 'output/', '--bar', 'value'];
+      vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+      const result = parseArgs(interleavedConfig);
+      expect(result.inFile).toBe('file1.txt');
+      expect(result.outDirectory).toBe('output/');
+      expect(result.all).toBe(true);
+      expect(result.dryRun).toBe(true);
+    });
+  });
+
+  it('should enforce positionals-first when allowInterleaved is false', () => {
+    const cfg: Config = { ...config, command: { ...config.command, allowInterleaved: false } } as any;
+    const args = ['file1.txt', '--all', 'output/', '--bar', 'value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+    expect(() => parseArgs(cfg)).toThrow('Missing required positional argument');
+  });
 });

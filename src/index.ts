@@ -30,6 +30,10 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
   }
   const result: Record<string, any> = {};
 
+  // Interleaved positionals: enabled by default for yargs-like behavior.
+  // Set `command.allowInterleaved = false` to restore traditional positionals-first parsing.
+  const allowInterleaved = (command as any).allowInterleaved !== false;
+
   // Check for duplicate aliases
   const aliasMap = new Map<string, string>();
   for (const [key, opt] of Object.entries(options)) {
@@ -63,15 +67,37 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
     }
   }
 
-  // Handle positional arguments
-  let argIndex = 0;
-  const nonOptionArgs: string[] = [];
-  while (argIndex < args.length && !args[argIndex].startsWith('-')) {
-    nonOptionArgs.push(args[argIndex]);
-    argIndex++;
+  const optionConsumed = new Set<number>();
+  const isSingleDashNegation = (s: string) => /^no-/.test(s);
+  if (allowInterleaved) {
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      if (!a.startsWith('-')) {
+        continue;
+      }
+      optionConsumed.add(i);
+      const isLong = a.startsWith('--');
+      const body = a.slice(isLong ? 2 : 1);
+      const negated = body.startsWith('no-');
+      const lookup = negated ? body.slice(3) : !isLong && body.length > 1 ? body.slice(-1) : body;
+      const [opt] = findOption(options, lookup);
+      if (opt?.type !== 'boolean' && args[i + 1] && !args[i + 1].startsWith('-')) {
+        optionConsumed.add(i + 1);
+      }
+    }
+  } else {
+    let i = args.findIndex(a => a.startsWith('-'));
+    while (i >= 0 && i < args.length) {
+      optionConsumed.add(i++);
+    }
   }
 
+  const nonOptionIndices = args.map((_, i) => i).filter(i => !optionConsumed.has(i));
+  const nonOptionArgs = nonOptionIndices.map(i => args[i]);
+
+  // Assign positionals from the collected non-option tokens
   let nonOptionIndex = 0;
+  const positionalConsumed = new Set<number>();
   for (let i = 0; i < positionals.length; i++) {
     const pos = positionals[i];
     if (pos.variadic) {
@@ -82,6 +108,9 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
         throw new Error(`Missing required positional argument, i.e.: "${command.name} ${usagePositionals}"`);
       }
       result[pos.name] = !pos.required && values.length === 0 && pos.default !== undefined ? pos.default : values;
+      for (let j = nonOptionIndex; j < nonOptionIndex + values.length; j++) {
+        positionalConsumed.add(nonOptionIndices[j]);
+      }
       nonOptionIndex += values.length;
     } else {
       const value = nonOptionArgs[nonOptionIndex];
@@ -90,6 +119,7 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
       const argsLeft = nonOptionArgs.length - nonOptionIndex;
       if (value !== undefined && (argsLeft > requiredLeft - (pos.required ? 1 : 0) || pos.required)) {
         result[pos.name] = value;
+        positionalConsumed.add(nonOptionIndices[nonOptionIndex]);
         nonOptionIndex++;
       } else if (!pos.required && pos.default !== undefined) {
         result[pos.name] = pos.default;
@@ -100,28 +130,9 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
     }
   }
 
-  // Handle options
-  argIndex = 0;
-  const consumedArgs = new Set<number>();
-  // Mark all nonOptionArgs indices as consumed for positionals
-  let tempNonOptionIndex = 0;
-  for (let i = 0; i < positionals.length; i++) {
-    const pos = positionals[i];
-    if (pos.variadic) {
-      const remaining = positionals.length - (i + 1);
-      const values = nonOptionArgs.slice(tempNonOptionIndex, nonOptionArgs.length - remaining);
-      for (let j = tempNonOptionIndex; j < tempNonOptionIndex + values.length; j++) {
-        consumedArgs.add(args.findIndex((a, idx) => !a.startsWith('-') && !consumedArgs.has(idx) && a === nonOptionArgs[j]));
-      }
-      tempNonOptionIndex += values.length;
-    } else {
-      const value = nonOptionArgs[tempNonOptionIndex++];
-      consumedArgs.add(args.findIndex((a, idx) => !a.startsWith('-') && !consumedArgs.has(idx) && a === value));
-    }
-  }
-
+  let argIndex = 0;
   while (argIndex < args.length) {
-    if (consumedArgs.has(argIndex)) {
+    if (positionalConsumed.has(argIndex)) {
       argIndex++;
       continue;
     }
@@ -143,9 +154,8 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
 
         // If this exact token matches an option (rare), prefer that (e.g. -xy where xy is alias)
         [option, configKey] = findOption(options, body);
-        // Avoid treating `-no-foo` or `-noFoo` as a short-char cluster — those are
-        // negated long forms and should be handled by the negation branch below.
-        if (!option && body.length > 1 && !/^no-/.test(body) && !/^no[A-Z]/.test(body)) {
+        // Avoid treating `-no-foo` as a short-char cluster — it's a negated long form.
+        if (!option && body.length > 1 && !isSingleDashNegation(body)) {
           // Treat as a cluster of single-char aliases
           const chars = body.split('');
           for (let ci = 0; ci < chars.length; ci++) {
@@ -157,7 +167,6 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
             }
 
             if (!isLast) {
-              // Middle flags must be boolean
               if (cOpt.type !== 'boolean') {
                 throw new Error(`Missing value for option: ${cKey}`);
               }
@@ -166,31 +175,25 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
               }
               result[cKey] = true;
             } else {
-              // Last flag: if boolean, set true; otherwise consume next token as its value
               if (cOpt.type === 'boolean') {
                 if (result[cKey] !== undefined) {
                   throw new Error('Providing same negated and truthy argument are not allowed');
                 }
                 result[cKey] = true;
-              } else if (cOpt.type === 'number') {
-                if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
-                  throw new Error(`Missing value for option: ${cKey}`);
-                }
-                result[cKey] = Number(args[++argIndex]);
               } else if (cOpt.type === 'array') {
                 if (!result[cKey]) {
                   result[cKey] = [];
                 }
-                const arrayValue = args[++argIndex];
-                if (arrayValue === undefined || arrayValue.startsWith('-')) {
+                const v = args[++argIndex];
+                if (v === undefined || v.startsWith('-')) {
                   throw new Error(`Missing value for array option: ${cKey}`);
                 }
-                result[cKey].push(arrayValue);
+                result[cKey].push(v);
               } else {
                 if (args[argIndex + 1] === undefined || args[argIndex + 1].startsWith('-')) {
                   throw new Error(`Missing value for option: ${cKey}`);
                 }
-                result[cKey] = args[++argIndex];
+                result[cKey] = cOpt.type === 'number' ? Number(args[++argIndex]) : args[++argIndex];
               }
             }
           }
@@ -201,7 +204,7 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
         }
       }
 
-      // Handle negated boolean in both forms
+      // Handle negated boolean (`no-foo` form)
       if (!option) {
         const isNegated = arg.startsWith('no-');
         const optionName = isNegated ? arg.slice(3) : arg;
@@ -213,7 +216,7 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
             throw new Error('Providing same negated and truthy argument are not allowed');
           }
           result[configKey] = !isNegated;
-          // When explicitly negated (e.g. --no-foo) also expose `noFoo` and `no-foo` keys
+          // When explicitly negated also expose `noFoo` and `no-foo` keys
           if (isNegated) {
             const kebabKey = camelToKebab(configKey);
             const noCamel = `no${configKey[0].toUpperCase()}${configKey.slice(1)}`;

@@ -15,9 +15,11 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 - Parses arguments
 - Supports defining Positional arguments (input args)
   - Supports Variadic arguments (1 or more positional args)
+  - Interleaved positionals — positionals may appear anywhere in the arg list (enabled by default). Set `command.allowInterleaved = false` to disable.
 - Automatically converts flags to camelCase to match config options
   - accepts both `--camelCase` and `--kebab-case`
 - Negates flags when using the `--no-` prefix
+- Clustered short flags (e.g. `-ad` behaves like `-a -d`)
 - Outputs version, when defined, by using `--version`
 - Outputs description and supplied help text by using `--help`
 - Supports defining `required` options
@@ -27,22 +29,13 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 
 ### Recent additions
 
-- Grouped short flags: support clustered short aliases (e.g. `-ad`) where the last short may consume a value when appropriate.
-- Kebab/camel duplication: parsed options are available under both `camelCase` and `kebab-case` keys (e.g. both `dryRun` and `dry-run`).
-- `--` passthrough: tokens after `--` are exposed on `result['--']` and are not parsed as options.
-- Raw argv exposure: the original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
-- Bare long-form behavior: a bare long option is treated as an empty value (e.g. `--opt` → `''`) and a bare long array option becomes `['']`.
-- Boolean negation parity: negated booleans expose both `noFoo` and `no-foo` keys (e.g. `--no-dry-run` sets `dryRun=false` and also exposes `noDryRun=true` and `no-dry-run=true`).
-- Negation guard: single-dash forms like `-no-foo` / `-noFoo` are treated as negated long options rather than short clusters.
-- Error message consistency: option/argument errors use the `Unknown argument: X` wording to match existing positional error messages.
-
-Short examples:
-
-- Clustered short flags: `-ad` behaves like `-a -d` and `-ab value` lets `b` consume `value` when `b` expects a value.
-- Bare long option: `--bar` (with no following token) results in `bar: ''` for string options.
-
-
-### Install
+- **Interleaved positionals**: positional arguments may appear anywhere in the argument list, interleaved with option flags — e.g. `cmd --flag pos1 --other pos2`. This behavior is enabled by default. Set `command.allowInterleaved = false` to opt out.
+- **Grouped short flags**: clustered short aliases (e.g. `-ad` behaves like `-a -d`); the last short in the cluster may consume the next token as its value.
+**Kebab/camel duplication (default)**: parsed options are available under both `camelCase` and `kebab-case` keys (e.g. both `dryRun` and `dry-run`). Equivalent in yargs: `camel-case-expansion` (enabled by default).
+- **`--` passthrough**: tokens after `--` are exposed on `result['--']` and are not parsed as options.
+- **Raw argv exposure**: the original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
+- **Bare long-form behavior**: a bare long option with no following value is treated as an empty string (e.g. `--opt` → `''`); a bare long array option becomes `['']`.
+- **Boolean negation parity**: negated booleans expose both `noFoo` and `no-foo` keys (e.g. `--no-dry-run` sets `dryRun=false` and also exposes `noDryRun=true` and `no-dry-run=true`).
 ```sh
 npm install cli-nano
 ```
@@ -209,6 +202,10 @@ serve index.html 7000 --bar
 # Negation parity and passthrough
 serve index.html 7000 --no-dry-run
 serve index.html 7000 -- file.txt --not-a-flag
+
+# Interleaved positionals (enabled by default)
+serve --dryRun index.html 7000 -D value
+serve index.html --exclude dist 7000 -D value
 ```
 
 #### Notes
@@ -228,8 +225,37 @@ serve index.html 7000 -- file.txt --not-a-flag
 - **Raw argv**: The original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
 - **Negation duplicates**: Using `--no-foo` sets `foo=false` and also exposes `noFoo` and `no-foo` keys.
 - **Alias**: `alias` must be a single string (multi-char aliases are supported). Array-style aliases are not supported and will be rejected.
+- **Interleaved positionals**: Positional arguments may appear anywhere alongside option flags by default. Set `command.allowInterleaved = false` to require positionals-first parsing.
+  - Yargs equivalent: to stop at the first non-option use `parserConfiguration({ 'halt-at-non-option': true })`.
 
 See [examples/](examples/) for more usage patterns.
+
+### Clarifications
+
+- **Subcommand parsing (modes):** cli-nano can be used to parse either a top-level command or a subcommand. When parsing a subcommand, attach the subcommand's options under `command.options` in that subcommand's `Config` so flags are recognized for that subcommand invocation. Example shape:
+
+```ts
+const config = {
+  command: {
+    name: 'exec',
+    positionals: [ /* ... */ ],
+    options: { // subcommand-specific options live here
+      parallel: { type: 'boolean', describe: 'run in parallel' },
+    },
+  },
+  options: { /* top-level options */ },
+};
+```
+
+- **Subcommand options tip:** If you only add flags to the top-level `options` object but intend them for a subcommand, parsing will not recognize them for that subcommand. Put subcommand flags on `config.command.options`.
+
+- **Interleaving vs yargs:** Interleaved positionals are enabled by default in cli-nano (positionals may appear anywhere). To opt out and require positionals-first (yargs' typical `halt-at-non-option` behavior), set:
+
+```ts
+command.allowInterleaved = false;
+```
+
+This makes cli-nano behave like yargs configured with `parserConfiguration({ 'halt-at-non-option': true })`.
 
 ## Help Example
 

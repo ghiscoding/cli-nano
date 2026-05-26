@@ -45,8 +45,8 @@
     "preview:cli:version": "node examples/cli.js --version",
     "prepack": "node scripts/prepack.js",
     "postpack": "node scripts/postpack.js",
-    "test": "vitest --watch --config ./vitest.config.mts",
-    "test:coverage": "vitest --coverage --config ./vitest.config.mts"
+    "test": "vitest --coverage --config ./vitest.config.mts",
+    "test:watch": "vitest --watch --config ./vitest.config.mts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
