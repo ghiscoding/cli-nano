@@ -296,15 +296,25 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
     argIndex++;
   }
 
-  // After all parsing, assign any `default` CLI options when undefined
-  // and check for any missing `required` CLI options
+  // After all parsing, first ensure any `required` CLI options are present
+  // (required should error even for boolean flags). Then assign any
+  // explicit `default` values and finally apply yargs-parity boolean
+  // defaults for non-required boolean flags.
   Object.entries(options).forEach(([key, opt]) => {
-    if (result[key] === undefined && opt.default !== undefined) {
-      result[key] = opt.default;
-    }
-    if (opt.required && result[key] === undefined) {
+    // If the option wasn't provided and is required, throw immediately.
+    if (result[key] === undefined && opt.required) {
       const aliasStr = opt.alias ? `-${opt.alias}, ` : '';
       throw new Error(`Missing required option: ${aliasStr}--${key}`);
+    }
+
+    // If the option wasn't provided, apply any explicit default.
+    if (result[key] === undefined) {
+      if (opt.default !== undefined) {
+        result[key] = opt.default;
+      } else if (opt.type === 'boolean') {
+        // Parity with yargs: boolean flags default to false when not provided
+        result[key] = false;
+      }
     }
   });
 
