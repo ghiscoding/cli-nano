@@ -73,6 +73,8 @@
       "style": {
         "noNonNullAssertion": "off",
         "noParameterAssign": "off",
+        "useBlockStatements": "error",
+        "useConsistentCurlyBraces": "error",
         "useExponentiationOperator": "off"
       },
       "nursery": {
