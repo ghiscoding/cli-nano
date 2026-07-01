@@ -49,14 +49,14 @@
     "test:watch": "vitest --watch --config ./vitest.config.mts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.13",
-    "@release-it/conventional-changelog": "^11.0.0",
-    "@types/node": "^25.6.0",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@biomejs/biome": "^2.5.1",
+    "@release-it/conventional-changelog": "^11.0.1",
+    "@types/node": "^25.9.4",
+    "@vitest/coverage-v8": "^4.1.9",
     "premove": "^4.0.0",
-    "release-it": "^20.0.1",
+    "release-it": "^20.2.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": "^20.0.0 || >=22.0.0"
