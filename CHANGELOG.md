@@ -1,6 +1,12 @@
 # Change Log 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.1](https://github.com/ghiscoding/cli-nano/compare/v1.4.0...v1.4.1) (2026-08-22)
+
+### Bug Fixes
+
+* **security:** harden dynamic option maps against prototype pollution ([6375d9c](https://github.com/ghiscoding/cli-nano/commit/6375d9c65435e6035f6f9184e524532fb29b50f1))
+
 ## [1.4.0](https://github.com/ghiscoding/cli-nano/compare/v1.3.1...v1.4.0) (2026-05-26)
 
 ### Features
