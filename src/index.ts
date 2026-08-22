@@ -28,7 +28,10 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
   if (dashIndex >= 0) {
     args = args.slice(0, dashIndex);
   }
-  const result: Record<string, any> = {};
+  // Parsed keys are derived from user-provided arguments and configuration.
+  // A null-prototype map prevents keys such as `__proto__` from invoking
+  // inherited setters or shadowing built-in object properties.
+  const result = Object.create(null) as Record<string, any>;
 
   // Interleaved positionals: enabled by default for yargs-like behavior.
   // Set `command.allowInterleaved = false` to restore traditional positionals-first parsing.
@@ -209,8 +212,12 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
         const isNegated = arg.startsWith('no-');
         const optionName = isNegated ? arg.slice(3) : arg;
         const camelOptionName = kebabToCamel(optionName);
-        option = options[optionName] || options[camelOptionName];
-        configKey = camelOptionName in options ? camelOptionName : optionName;
+        option = hasOwn(options, optionName)
+          ? options[optionName]
+          : hasOwn(options, camelOptionName)
+            ? options[camelOptionName]
+            : undefined;
+        configKey = hasOwn(options, camelOptionName) ? camelOptionName : optionName;
         if (option?.type === 'boolean') {
           if (result[optionName] !== undefined || result[camelOptionName] !== undefined) {
             throw new Error('Providing same negated and truthy argument are not allowed');
@@ -381,7 +388,13 @@ function formatOptionType(type: string | undefined, variadic?: boolean, required
 /** Helper to find an option and its config key by argument name or alias. */
 function findOption(options: Record<string, FlagOption>, arg: string): [FlagOption | undefined, string | undefined] {
   // Try all forms: as-is, kebab-to-camel, camel-to-kebab
-  const option = options[arg] || options[kebabToCamel(arg)] || options[camelToKebab(arg).replace(/-/g, '')];
+  const option = hasOwn(options, arg)
+    ? options[arg]
+    : hasOwn(options, kebabToCamel(arg))
+      ? options[kebabToCamel(arg)]
+      : hasOwn(options, camelToKebab(arg).replace(/-/g, ''))
+        ? options[camelToKebab(arg).replace(/-/g, '')]
+        : undefined;
   if (option) {
     const configKey = Object.keys(options).find(key => options[key] === option);
     return [option, configKey];
@@ -415,7 +428,8 @@ function printHelp(config: Config) {
   // calculate longest description length
   let longestOptNameLn = 0;
   let longestOptDescLn = 0;
-  for (const [key, option] of Object.entries({ ...options, ...defaultOptions })) {
+  const helpOptions = Object.assign(Object.create(null) as Record<string, FlagOption>, options, defaultOptions);
+  for (const [key, option] of Object.entries(helpOptions)) {
     const flagLn = (config.helpFlagCasing === 'camel' ? key : camelToKebab(key)).length;
     if (flagLn > longestOptNameLn) {
       longestOptNameLn = key.length;
@@ -444,7 +458,7 @@ function printHelp(config: Config) {
   });
 
   // Group options by their group property
-  const groupedOptions = Object.entries({ ...options, ...defaultOptions }).reduce(
+  const groupedOptions = Object.entries(helpOptions).reduce(
     (acc, [key, option]) => {
       const group = option.group || 'Options';
       if (!acc[group]) {
@@ -453,7 +467,7 @@ function printHelp(config: Config) {
       acc[group].push([key, option]);
       return acc;
     },
-    {} as Record<string, [string, FlagOption][]>,
+    Object.create(null) as Record<string, [string, FlagOption][]>,
   );
 
   Object.keys(groupedOptions).forEach(group => {
@@ -479,4 +493,9 @@ function kebabToCamel(str: string) {
 /** Utility to convert camelCase to kebab-case */
 function camelToKebab(str: string) {
   return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+/** Check for an own property without consulting an object's prototype. */
+function hasOwn(object: object, key: PropertyKey) {
+  return Object.prototype.hasOwnProperty.call(object, key);
 }
