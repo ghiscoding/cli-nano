@@ -917,6 +917,31 @@ describe('parseArgs', () => {
     expect(result.bar).toBe('value');
   });
 
+  it('should keep dynamic result keys isolated from the object prototype', () => {
+    const configWithPrototypeKeys: Config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        ['__proto__']: { type: 'string', alias: 'p', describe: '' },
+        constructor: { type: 'string', alias: 'c', describe: '' },
+      },
+      version: '1.0.0',
+    };
+
+    const args = ['--__proto__', 'safe-prototype-value', '--constructor', 'safe-constructor-value'];
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+
+    const result = parseArgs(configWithPrototypeKeys);
+
+    expect(Object.getPrototypeOf(result)).toBeNull();
+    expect(Object.getOwnPropertyDescriptor(result, '__proto__')?.value).toBe('safe-prototype-value');
+    expect(result.constructor).toBe('safe-constructor-value');
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
   it('should handle options that include leading no- in their config key and set duplicate no- keys', () => {
     const configWithNoKey: Config = {
       command: {
