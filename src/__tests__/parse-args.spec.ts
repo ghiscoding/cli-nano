@@ -136,6 +136,26 @@ describe('parseArgs', () => {
     expect(result.bazQux).toBe(true);
   });
 
+  it('should match compact option keys from kebab-case arguments', () => {
+    const config = {
+      command: {
+        name: 'test',
+        describe: '',
+        positionals: [],
+      },
+      options: {
+        foobar: { type: 'boolean', describe: '' },
+      },
+      version: '1.0.0',
+    } as const;
+
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', '--foo-bar']);
+
+    const result = parseArgs(config);
+
+    expect(result.foobar).toBe(true);
+  });
+
   it('should parse string options correctly', () => {
     const args = ['file1.txt', 'output/', '--up', '2', '--bar', 'value'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
