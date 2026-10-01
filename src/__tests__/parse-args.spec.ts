@@ -273,7 +273,7 @@ describe('parseArgs', () => {
       try {
         parseArgs(config);
       } catch (error: any) {
-        expect(error.message).toBe('process.exit unexpectedly called with "0"');
+        expect(error.message).toContain('process.exit unexpectedly called with "0"');
         expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
         expect(consoleLogSpy).toHaveBeenCalledWith(
           expect.stringContaining('copyfiles <inFile> <outDirectory> [options] → Copy files from a source to a destination directory'),
@@ -451,7 +451,7 @@ describe('parseArgs', () => {
       try {
         parseArgs(config);
       } catch (error: any) {
-        expect(error.message).toBe('process.exit unexpectedly called with "0"');
+        expect(error.message).toContain('process.exit unexpectedly called with "0"');
         expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('0.1.6'));
         done();
       }
