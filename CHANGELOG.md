@@ -1,6 +1,12 @@
 # Change Log 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.2](https://github.com/ghiscoding/cli-nano/compare/v1.4.1...v1.4.2) (2026-10-02)
+
+### Performance Improvements
+
+* **parser:** optimize argument parsing and fix edge cases ([#85](https://github.com/ghiscoding/cli-nano/issues/85)) ([c9a4acf](https://github.com/ghiscoding/cli-nano/commit/c9a4acfd8a24827d8d4df09bbc3d02642f9c968e))
+
 ## [1.4.1](https://github.com/ghiscoding/cli-nano/compare/v1.4.0...v1.4.1) (2026-08-22)
 
 ### Bug Fixes
