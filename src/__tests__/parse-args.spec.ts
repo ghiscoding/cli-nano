@@ -946,7 +946,7 @@ describe('parseArgs', () => {
       },
       options: {
         ['__proto__']: { type: 'string', alias: 'p', describe: '' },
-        constructor: { type: 'string', alias: 'c', describe: '' },
+        constructor: { type: 'string' as const, alias: 'c', describe: '' },
       },
       version: '1.0.0',
     };
@@ -1041,26 +1041,19 @@ describe('parseArgs', () => {
   });
 
   it('should expose tokens after -- in result["--"] and not parse them', () => {
-    const args = ['file1.txt', 'output/', '--bar', 'value', '--', '--not-a-flag', 'positional'];
+    const passthrough = ['--not-a-flag', 'positional', '--target=a=b', '-x=', '--', ''];
+    const args = ['file1.txt', 'output/', '--bar', 'value', '--', ...passthrough];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
     const result = parseArgs(config);
     expect(result.bar).toBe('value');
-    expect(result['--']).toEqual(['--not-a-flag', 'positional']);
+    expect(result['--']).toEqual(passthrough);
+    expect(result.__rawArgs).toEqual(args);
     // ensure the tokens after -- were not parsed as options or positionals
     expect(result.positional).toBeUndefined();
   });
 
-  it('should duplicate parsed keys into both kebab-case and camelCase (kebab input)', () => {
-    const args = ['file1.txt', 'output/', '--dry-run', '--bar', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(config);
-    expect(result.dryRun).toBe(true);
-    expect(result['dry-run']).toBe(true);
-  });
-
-  it('should duplicate parsed keys into both kebab-case and camelCase (camel input)', () => {
-    const args = ['file1.txt', 'output/', '--dryRun', '--bar', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
+  it.each(['--dry-run', '--dryRun'])('should duplicate parsed keys into both casings for %s', flag => {
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', 'file1.txt', 'output/', flag, '--bar', 'value']);
     const result = parseArgs(config);
     expect(result.dryRun).toBe(true);
     expect(result['dry-run']).toBe(true);
@@ -1182,171 +1175,31 @@ describe('parseArgs', () => {
     expect(result.inputs).toEqual(['default1.txt', 'default2.txt']);
   });
 
-  it('should not use default value for option if value is provided', () => {
+  it.each([
+    ['verbose', 'boolean', 'V', true],
+    ['follow', 'boolean', 'F', true],
+    ['file', 'string', 'f', '/etc/passwd'],
+    ['up', 'number', undefined, 5],
+    ['exclude', 'array', 'e', ['node_modules', 'dist']],
+  ] as const)('should use the default value for %s when not provided', (key, type, alias, defaultValue) => {
     const configWithDefault: Config = {
       ...config,
-      options: {
-        ...config.options,
-        file: {
-          alias: 'f',
-          type: 'string',
-          describe: 'File path',
-          default: '/etc/passwd',
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
+      options: { ...config.options, [key]: { type, alias, describe: '', default: defaultValue } },
     };
-    const args = ['file1.txt', 'output/', '--file', '/tmp/override', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.file).toBe('/tmp/override');
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', 'file1.txt', 'output/', '-b', 'value']);
+    expect(parseArgs(configWithDefault)[key]).toEqual(defaultValue);
   });
 
-  it('should use default value for option with alias when not provided', () => {
+  it.each([
+    ['file', 'string', 'f', '/etc/passwd', ['--file', '/tmp/override'], '/tmp/override'],
+    ['follow', 'boolean', 'F', false, ['--follow'], true],
+  ] as const)('should override the default value for %s when provided', (key, type, alias, defaultValue, flags, expected) => {
     const configWithDefault: Config = {
       ...config,
-      options: {
-        ...config.options,
-        verbose: {
-          alias: 'V',
-          type: 'boolean',
-          describe: 'Print more information',
-          default: true,
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
+      options: { ...config.options, [key]: { type, alias, describe: '', default: defaultValue } },
     };
-    const args = ['file1.txt', 'output/', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.verbose).toBe(true);
-  });
-
-  it('should use default value for boolean option when not provided', () => {
-    const configWithDefault: Config = {
-      ...config,
-      options: {
-        ...config.options,
-        follow: {
-          alias: 'F',
-          type: 'boolean',
-          describe: 'Follow symbolic links',
-          default: true,
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
-    };
-    const args = ['file1.txt', 'output/', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.follow).toBe(true);
-  });
-
-  it('should use default value for string option when not provided', () => {
-    const configWithDefault: Config = {
-      ...config,
-      options: {
-        ...config.options,
-        file: {
-          alias: 'f',
-          type: 'string',
-          describe: 'File path',
-          default: '/etc/passwd',
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
-    };
-    const args = ['file1.txt', 'output/', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.file).toBe('/etc/passwd');
-  });
-
-  it('should use default value for number option when not provided', () => {
-    const configWithDefault: Config = {
-      ...config,
-      options: {
-        ...config.options,
-        up: {
-          type: 'number',
-          describe: 'slice a path off the bottom of the paths',
-          default: 5,
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
-    };
-    const args = ['file1.txt', 'output/', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.up).toBe(5);
-  });
-
-  it('should use default value for array option when not provided', () => {
-    const configWithDefault: Config = {
-      ...config,
-      options: {
-        ...config.options,
-        exclude: {
-          alias: 'e',
-          type: 'array',
-          describe: 'pattern or glob to exclude',
-          default: ['node_modules', 'dist'],
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
-    };
-    const args = ['file1.txt', 'output/', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.exclude).toEqual(['node_modules', 'dist']);
-  });
-
-  it('should override default value when option is provided', () => {
-    const configWithDefault: Config = {
-      ...config,
-      options: {
-        ...config.options,
-        follow: {
-          alias: 'F',
-          type: 'boolean',
-          describe: 'Follow symbolic links',
-          default: false,
-        },
-        bar: {
-          alias: 'b',
-          required: true,
-          describe: 'a required bar option',
-        },
-      },
-    };
-    const args = ['file1.txt', 'output/', '--follow', '-b', 'value'];
-    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
-    const result = parseArgs(configWithDefault);
-    expect(result.follow).toBe(true);
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', 'file1.txt', 'output/', ...flags, '-b', 'value']);
+    expect(parseArgs(configWithDefault)[key]).toEqual(expected);
   });
 
   it('should parse options passed with = (equals sign)', () => {
@@ -1357,11 +1210,98 @@ describe('parseArgs', () => {
     expect(result.bar).toBe('value');
   });
 
+  it.each([
+    ['--help=true', 'Usage:'],
+    ['-h=true', 'Usage:'],
+    ['--version=', '0.1.6'],
+    ['-v=', '0.1.6'],
+  ])('should handle the built-in flag %s in equals form', (flag, output) => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', flag]);
+    expect(() => parseArgs(config)).toThrow('exit');
+    expect(log).toHaveBeenCalledWith(output);
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it.each([
+    ['string', ['--output=', 'file.txt'], ''],
+    ['string', ['--output', '', 'file.txt'], ''],
+    ['array', ['--output=', 'file.txt'], ['']],
+    ['array', ['--output', '', 'file.txt'], ['']],
+    ['string', ['--output=a=b', 'file.txt'], 'a=b'],
+    ['string', ['--output=--help', 'file.txt'], '--help'],
+    ['string', ['-o=--', 'file.txt'], '--'],
+    ['number', ['--output=-2', 'file.txt'], -2],
+    ['array', ['-ao=', 'file.txt'], ['']],
+  ] as const)('should keep positional arguments after a %s value in %j', (type, argv, expected) => {
+    const cfg: Config = {
+      command: { name: 'test', describe: '', positionals: [{ name: 'file', required: true, describe: '' }] },
+      options: { output: { type, alias: 'o', describe: '' }, all: { type: 'boolean', alias: 'a', describe: '' } },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...argv]);
+    const result = parseArgs(cfg);
+    expect(result.file).toBe('file.txt');
+    expect(result.output).toEqual(expected);
+    expect(result._).toEqual(['file.txt']);
+    expect(result.__rawArgs).toEqual(argv);
+  });
+
+  it.each(['-ab', '--ab'])('should prefer an exact multi-character boolean alias for %s before a positional', flag => {
+    const cfg: Config = {
+      command: { name: 'test', describe: '', positionals: [{ name: 'file', required: true, describe: '' }] },
+      options: {
+        enabled: { type: 'boolean', alias: 'ab', describe: '' },
+        other: { type: 'string', alias: 'b', describe: '' },
+      },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', flag, 'file.txt']);
+    const result = parseArgs(cfg);
+    expect(result.enabled).toBe(true);
+    expect(result.other).toBeUndefined();
+    expect(result.file).toBe('file.txt');
+  });
+
+  it.each(['--fooBar', '--foo-bar'])('should retain configuration order for transformed aliases with %s', flag => {
+    const cfg: Config = {
+      command: { name: 'test', describe: '' },
+      options: {
+        first: { type: 'boolean', alias: 'foo-bar', describe: '' },
+        second: { type: 'boolean', alias: 'fooBar', describe: '' },
+      },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', flag]);
+    expect(parseArgs(cfg)).toMatchObject({ first: true, second: false });
+    cfg.options = { second: cfg.options.second, first: cfg.options.first };
+    expect(parseArgs(cfg)).toMatchObject({ first: false, second: true });
+  });
+
+  it('should prefer a configured name over an alias and resolve shared option descriptors by key', () => {
+    const shared = { type: 'boolean', describe: '' } as const;
+    const cfg: Config = {
+      command: { name: 'test', describe: '' },
+      options: { aliasOwner: { ...shared, alias: 'second' }, first: shared, second: shared },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', '--second']);
+    expect(parseArgs(cfg)).toMatchObject({ aliasOwner: false, first: false, second: true });
+  });
+
+  it('should keep an inline boolean value available as a positional', () => {
+    const cfg: Config = {
+      command: { name: 'test', describe: '', positionals: [{ name: 'file', required: true, describe: '' }] },
+      options: { enabled: { type: 'boolean', describe: '' } },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', '--enabled=file.txt']);
+    expect(parseArgs(cfg)).toMatchObject({ enabled: true, file: 'file.txt' });
+  });
+
   describe('allowInterleaved', () => {
     const interleavedConfig = {
       ...config,
       command: { ...config.command, allowInterleaved: true },
-    } as unknown as Config;
+    } satisfies Config;
 
     it('should allow positionals to appear after all options', () => {
       const args = ['--all', '--bar', 'value', 'file1.txt', 'output/'];
@@ -1431,7 +1371,7 @@ describe('parseArgs', () => {
   });
 
   it('should enforce positionals-first when allowInterleaved is false', () => {
-    const cfg: Config = { ...config, command: { ...config.command, allowInterleaved: false } } as any;
+    const cfg: Config = { ...config, command: { ...config.command, allowInterleaved: false } };
     const args = ['file1.txt', '--all', 'output/', '--bar', 'value'];
     vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cli.js', ...args]);
     expect(() => parseArgs(cfg)).toThrow('Missing required positional argument');
