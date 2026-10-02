@@ -31,10 +31,10 @@ Small library to create command-line tool (aka CLI) which is quite similar to [`
 
 - **Interleaved positionals**: positional arguments may appear anywhere in the argument list, interleaved with option flags — e.g. `cmd --flag pos1 --other pos2`. This behavior is enabled by default. Set `command.allowInterleaved = false` to opt out.
 - **Grouped short flags**: clustered short aliases (e.g. `-ad` behaves like `-a -d`); the last short in the cluster may consume the next token as its value.
-**Kebab/camel duplication (default)**: parsed options are available under both `camelCase` and `kebab-case` keys (e.g. both `dryRun` and `dry-run`). Equivalent in yargs: `camel-case-expansion` (enabled by default).
+- **Kebab/camel duplication (default)**: parsed options are available under both `camelCase` and `kebab-case` keys (e.g. both `dryRun` and `dry-run`). Equivalent in yargs: `camel-case-expansion` (enabled by default).
 - **`--` passthrough**: tokens after `--` are exposed on `result['--']` and are not parsed as options.
 - **Raw argv exposure**: the original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
-- **Bare long-form behavior**: a bare long option with no following value is treated as an empty string (e.g. `--opt` → `''`); a bare long array option becomes `['']`.
+- **Bare long-form behavior**: a bare long string option with no following value is treated as an empty string (e.g. `--opt` → `''`); a bare long array option becomes `['']`. Number options require a value.
 - **Boolean negation parity**: negated booleans expose both `noFoo` and `no-foo` keys (e.g. `--no-dry-run` sets `dryRun=false` and also exposes `noDryRun=true` and `no-dry-run=true`).
 ```sh
 npm install cli-nano
@@ -220,42 +220,42 @@ serve index.html --exclude dist 7000 -D value
 - **Aliases**: Use `alias` for short flags (e.g., `-d` for `--dryRun`).
 - **Groups**: Use `group` for grouping some commands in help (e.g., `{ group: 'Extra Commands' }`).
 
-- **Equals form**: `--opt=value` and `--opt=` are supported; an empty value after `=` yields an empty string.
-- **Passthrough**: Tokens after `--` are not parsed and are available on `result['--']`.
+- **Equals form**: String, number, and array options support `--opt=value` and `-o=value`. Inline values preserve embedded `=` and leading `-`, e.g. `--output=a=b`, `--output=--help`, or `--count=-2` for a number option. An inline `--help` value is treated as data.
+- **Empty values**: For string options, `--output=` and `--output ''` both produce `''`. For array options, `--exclude=` adds an empty string to the array. An explicit empty value does not consume the following positional argument: `cmd --output= file.txt` leaves `file.txt` available as a positional.
+- **Passthrough**: Tokens after the standalone `--` are preserved exactly and are available on `result['--']`. For example, `cmd -- --target=a=b -x=` produces `['--target=a=b', '-x=']` in `result['--']`.
 - **Raw argv**: The original argv slice is available on `result.__rawArgs` for diagnostics or passthrough adapters.
 - **Negation duplicates**: Using `--no-foo` sets `foo=false` and also exposes `noFoo` and `no-foo` keys.
-- **Alias**: `alias` must be a single string (multi-char aliases are supported). Array-style aliases are not supported and will be rejected.
-- **Interleaved positionals**: Positional arguments may appear anywhere alongside option flags by default. Set `command.allowInterleaved = false` to require positionals-first parsing.
-  - Yargs equivalent: to stop at the first non-option use `parserConfiguration({ 'halt-at-non-option': true })`.
+- **Alias precedence**: `alias` must be a single string; array-style aliases are not supported. Configured option names take precedence over aliases. A matching multi-character alias such as `-ab` takes precedence over interpreting it as a cluster of `-a -b`. A boolean alias does not consume a following positional argument. If multiple aliases match through camel/kebab conversion, the first option in configuration order wins.
+- **Interleaved positionals**: Positional arguments may appear anywhere alongside option flags by default. Set `command.allowInterleaved = false` to require positionals-first parsing. This setting is declared on the TypeScript `CommandOption` interface.
 
 See [examples/](examples/) for more usage patterns.
 
 ### Clarifications
 
-- **Subcommand parsing (modes):** cli-nano can be used to parse either a top-level command or a subcommand. When parsing a subcommand, attach the subcommand's options under `command.options` in that subcommand's `Config` so flags are recognized for that subcommand invocation. Example shape:
+- **Subcommand parsing:** `parseArgs()` reads one `Config` per invocation. To parse a subcommand, put its metadata under `command` and its flags in the top-level `options` object. The calling application handles subcommand dispatch and removes the subcommand name from the arguments before parsing. Example configuration:
 
 ```ts
 const config = {
   command: {
     name: 'exec',
+    describe: 'Run a command',
     positionals: [ /* ... */ ],
-    options: { // subcommand-specific options live here
-      parallel: { type: 'boolean', describe: 'run in parallel' },
-    },
   },
-  options: { /* top-level options */ },
+  options: {
+    parallel: { type: 'boolean', describe: 'Run in parallel' },
+  },
 };
 ```
 
-- **Subcommand options tip:** If you only add flags to the top-level `options` object but intend them for a subcommand, parsing will not recognize them for that subcommand. Put subcommand flags on `config.command.options`.
+- **Subcommand options tip:** `config.command.options` is not read by the parser. Include any shared flags alongside the subcommand flags in `config.options`.
 
-- **Interleaving vs yargs:** Interleaved positionals are enabled by default in cli-nano (positionals may appear anywhere). To opt out and require positionals-first (yargs' typical `halt-at-non-option` behavior), set:
+- **Positionals-first parsing:** Interleaved positionals are enabled by default. To require positionals before the first option, set:
 
 ```ts
-command.allowInterleaved = false;
+config.command.allowInterleaved = false;
 ```
 
-This makes cli-nano behave like yargs configured with `parserConfiguration({ 'halt-at-non-option': true })`.
+With this setting, only tokens preceding the first option can satisfy positional arguments. Options and their values are still parsed normally.
 
 ## Help Example
 
