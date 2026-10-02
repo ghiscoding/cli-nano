@@ -48,6 +48,9 @@ export interface CommandOption {
   /** give some example invocations of your program */
   examples?: readonly ExampleOption[];
 
+  /** defaults to true, allows positionals between option flags */
+  allowInterleaved?: boolean;
+
   /** list of positional arguments */
   positionals?: readonly PositionalArgument[];
 }
