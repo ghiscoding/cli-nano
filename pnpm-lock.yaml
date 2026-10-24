@@ -18,7 +18,7 @@ importers:
         specifier: ^26.6.5
         version: 26.6.5
       '@vitest/coverage-v8':
-        specifier: ^5.0.4
+        specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
       premove:
         specifier: ^4.0.0
@@ -30,7 +30,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vitest:
-        specifier: ^5.0.4
+        specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(vite@8.3.1(@types/node@26.6.5)(jiti@2.7.0))
 
 packages:
