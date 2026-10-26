@@ -49,7 +49,7 @@
     "test:watch": "vitest --watch --config ./vitest.config.mts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.2",
+    "@biomejs/biome": "^2.6.3",
     "@release-it/conventional-changelog": "^12.0.2",
     "@types/node": "^26.6.5",
     "@vitest/coverage-v8": "^5.0.5",
