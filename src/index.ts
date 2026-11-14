@@ -75,9 +75,10 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
     const positionalIndex = allowInterleaved || !foundFlag ? nonOptionArgs.push(name) - 1 : undefined;
     parsedArgs.push({ name, positionalIndex });
   };
+  const isOptionToken = (token: string) => token !== '-' && token.startsWith('-');
   for (let i = 0; i < args.length; i++) {
     const original = args[i];
-    if (!original.startsWith('-')) {
+    if (!isOptionToken(original)) {
       collectPositional(original);
       continue;
     }
@@ -108,7 +109,7 @@ export function parseArgs<C extends Config>(config: C): ArgsResult<C> {
       if (last && option?.type !== 'boolean') {
         if (inlineValue !== undefined) {
           value = inlineValue;
-        } else if (args[i + 1] !== undefined && !args[i + 1].startsWith('-')) {
+        } else if (args[i + 1] !== undefined && !isOptionToken(args[i + 1])) {
           value = args[++i];
         }
       }
