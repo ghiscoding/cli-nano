@@ -1,6 +1,12 @@
 # Change Log 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.3](https://github.com/ghiscoding/cli-nano/compare/v1.4.2...v1.4.3) (2026-11-14)
+
+### Bug Fixes
+
+* parse standalone dash as a positional or option value ([#93](https://github.com/ghiscoding/cli-nano/issues/93)) ([49595db](https://github.com/ghiscoding/cli-nano/commit/49595dbe2f46ee1d461b1d0a5cb534d3626b8662))
+
 ## [1.4.2](https://github.com/ghiscoding/cli-nano/compare/v1.4.1...v1.4.2) (2026-10-02)
 
 ### Performance Improvements
