@@ -1211,6 +1211,35 @@ describe('parseArgs', () => {
   });
 
   it.each([
+    [['-'], ['-'], undefined],
+    [['-o', '-'], [], '-'],
+    [['--output', '-'], [], '-'],
+    [['--output=-'], [], '-'],
+    [['--enabled', '-'], ['-'], undefined],
+    [['-eo', '-', 'file.txt'], ['file.txt'], '-'],
+  ])('should parse a standalone dash in %j', (argv, files, output) => {
+    const cfg: Config = {
+      command: { name: 'cat', describe: '', positionals: [{ name: 'files', describe: '', type: 'string', variadic: true }] },
+      options: { output: { type: 'string', alias: 'o', describe: '' }, enabled: { type: 'boolean', alias: 'e', describe: '' } },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cat', ...argv]);
+    const result = parseArgs(cfg);
+    expect(result.files).toEqual(files);
+    expect(result._).toEqual(files);
+    expect(result.output).toBe(output);
+    expect(result.__rawArgs).toEqual(argv);
+  });
+
+  it('should consume a standalone dash as an array option value', () => {
+    const cfg: Config = {
+      command: { name: 'cat', describe: '', positionals: [{ name: 'file', describe: '' }] },
+      options: { output: { type: 'array', alias: 'o', describe: '' } },
+    };
+    vi.spyOn(process, 'argv', 'get').mockReturnValue(['node', 'cat', '-o', '-', 'file.txt']);
+    expect(parseArgs(cfg)).toMatchObject({ output: ['-'], file: 'file.txt', _: ['file.txt'] });
+  });
+
+  it.each([
     ['--help=true', 'Usage:'],
     ['-h=true', 'Usage:'],
     ['--version=', '0.1.6'],
